@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lily Garden — Personal Study Tracker</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- HTML2Canvas for smooth Photo Card renders -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        lily: {
+                            50: '#FCFBF7',
+                            100: '#FAF7ED',
+                            200: '#F5EED8',
+                            300: '#EADBB3',
+                            400: '#D9C289',
+                            500: '#C8A862',
+                            600: '#A98845',
+                            sage: '#6E8E59',
+                            sagedark: '#4E6A3B',
+                            sagelight: '#EBF2E8',
+                            terracotta: '#D97757',
+                            dark: '#2C3528',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        serif: ['"Cinzel"', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom scrollbars and subtle animations */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #FAF7ED;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #D9C289;
+            border-radius: 9999px;
+        }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(217, 194, 137, 0.3);
+        }
+
+        .glass-card {
+            background: rgba(250, 247, 237, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(217, 194, 137, 0.4);
+        }
+
+        @keyframes floatPetal {
+            0% { transform: translateY(-10px) rotate(0deg); opacity: 0; }
+            20% { opacity: 0.8; }
+            100% { transform: translateY(105vh) rotate(360deg); opacity: 0; }
+        }
+
+        .petal-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .petal {
+            position: absolute;
+            background: radial-gradient(circle, #FAF7ED 0%, #EADBB3 100%);
+            border-radius: 150% 0 150% 0;
+            opacity: 0.6;
+            animation: floatPetal linear infinite;
+        }
+
+        /* Printable / Capture area fine-tuning */
+        #photoCardCapture {
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body class="bg-lily-100 text-lily-dark font-sans antialiased min-h-screen relative pb-20 md:pb-6 selection:bg-lily-300 selection:text-lily-dark">
+
+    <div class="petal-bg" id="petalContainer"></div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div class="relative z-10 flex flex-col md:flex-row min-h-screen max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 gap-6">
+
+        <aside class="hidden md:flex flex-col w-64 glass-panel rounded-3xl p-6 shadow-sm border border-lily-300/40 h-[calc(100vh-3rem)] sticky top-6 justify-between">
+            <div>
+                <!-- Brand Title -->
+                <div class="flex items-center gap-3 mb-8">
+                    <div class="w-10 h-10 rounded-2xl bg-lily-sage flex items-center justify-center text-white shadow-md">
+                        <i data-lucide="flower-2" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-serif font-bold text-lg text-lily-dark leading-tight">Lily Garden</h1>
+                        <p class="text-xs text-lily-sage font-medium">Study Companion</p>
+                    </div>
+                </div>
+
+                <!-- Nav Menu -->
+                <nav class="space-y-2">
+                    <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 text-sm font-semibold bg-lily-sage text-white shadow-sm">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard
+                    </button>
+                    <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 text-sm font-semibold text-lily-dark hover:bg-lily-200/50">
+                        <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Daily Analytics
+                    </button>
+                    <button onclick="switchTab('history')" id="nav-history" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 text-sm font-semibold text-lily-dark hover:bg-lily-200/50">
+                        <i data-lucide="calendar" class="w-5 h-5"></i> History & Logs
+                    </button>
+                    <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 text-sm font-semibold text-lily-dark hover:bg-lily-200/50">
+                        <i data-lucide="settings" class="w-5 h-5"></i> Settings
+                    </button>
+                </nav>
+
+                <div class="mt-8 pt-6 border-t border-lily-300/40">
+                    <button onclick="openPhotoCardModal()" class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-lily-500 to-lily-sage text-white py-3 px-4 rounded-2xl shadow-md hover:shadow-lg transition-all font-medium text-sm group">
+                        <i data-lucide="camera" class="w-4 h-4 group-hover:scale-110 transition-transform"></i>
+                        <span>📷 Photo Card</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Profile Summary Box -->
+            <div class="glass-card p-4 rounded-2xl border border-lily-300/50 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-lily-300 text-lily-dark flex items-center justify-center font-bold font-serif" id="sidebarAvatar">
+                    U
+                </div>
+                <div class="overflow-hidden">
+                    <h4 class="text-sm font-bold text-lily-dark truncate" id="sidebarName">Student</h4>
+                    <p class="text-xs text-lily-sage truncate" id="sidebarGoalText">Target: 4h 0m</p>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col gap-6 overflow-x-hidden">
+            
+            <!-- TOP BAR -->
+            <header class="glass-panel rounded-3xl px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm border border-lily-300/40">
+                <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-lily-200 text-lily-sage flex items-center justify-center md:hidden">
+                            <i data-lucide="flower-2" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-serif font-bold text-lily-dark" id="greetingHeader">Good Morning 🌿</h2>
+                            <p class="text-xs text-gray-500 font-medium" id="currentDateDisplay">Wednesday, Oct 7, 2026</p>
+                        </div>
+                    </div>
+                    
+                    <button onclick="openPhotoCardModal()" class="md:hidden flex items-center gap-1.5 bg-lily-sage text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm">
+                        <i data-lucide="camera" class="w-4 h-4"></i> Card
+                    </button>
+                </div>
+
+                <!-- Clock Display -->
+                <div class="flex items-center gap-4 bg-lily-50/80 px-4 py-2 rounded-2xl border border-lily-200 shadow-inner w-full sm:w-auto justify-center">
+                    <i data-lucide="clock" class="w-4 h-4 text-lily-sage"></i>
+                    <span id="liveClock" class="font-mono text-lg font-bold text-lily-dark tracking-wider">00:00:00 AM</span>
+                </div>
+            </header>
+
+            <!-- TAB 1: DASHBOARD VIEW -->
+            <section id="tab-dashboard" class="tab-content flex flex-col gap-6">
+                
+                <!-- TOP METRICS ROW -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Daily Progress Card -->
+                    <div class="glass-panel p-5 rounded-3xl border border-lily-300/40 flex items-center justify-between relative overflow-hidden">
+                        <div>
+                            <p class="text-xs text-lily-sage font-semibold uppercase tracking-wider mb-1">Today's Study</p>
+                            <h3 class="text-2xl font-serif font-bold text-lily-dark" id="dashTodayTotal">0h 0m</h3>
+                            <p class="text-xs text-gray-500 mt-1" id="dashGoalSubtitle">Goal: 4h 0m</p>
+                        </div>
+                        <div class="relative w-16 h-16 flex items-center justify-center">
+                            <svg class="w-16 h-16 transform -rotate-90">
+                                <circle cx="32" cy="32" r="26" stroke="#EADBB3" stroke-width="6" fill="transparent" />
+                                <circle id="goalProgressRing" cx="32" cy="32" r="26" stroke="#6E8E59" stroke-width="6" fill="transparent" stroke-dasharray="163.36" stroke-dashoffset="163.36" stroke-linecap="round" class="transition-all duration-700" />
+                            </svg>
+                            <span id="goalPercentText" class="absolute text-xs font-bold text-lily-dark">0%</span>
+                        </div>
+                    </div>
+
+                    <!-- Sessions Count -->
+                    <div class="glass-panel p-5 rounded-3xl border border-lily-300/40 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-lily-sage font-semibold uppercase tracking-wider mb-1">Completed Sessions</p>
+                            <h3 class="text-2xl font-serif font-bold text-lily-dark" id="dashSessionsCount">0</h3>
+                            <p class="text-xs text-gray-500 mt-1" id="dashPeakPeriod">Peak Time: --</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-lily-200/70 flex items-center justify-center text-lily-sage">
+                            <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+
+                    <!-- Quick Share Trigger Card -->
+                    <div class="glass-panel p-5 rounded-3xl border border-lily-300/40 flex items-center justify-between bg-gradient-to-br from-lily-100 to-lily-200/50 sm:col-span-2 lg:col-span-1">
+                        <div>
+                            <p class="text-xs text-lily-500 font-bold uppercase tracking-wider mb-1">Daily Achievement</p>
+                            <h3 class="text-lg font-serif font-bold text-lily-dark">Share Study Card</h3>
+                            <p class="text-xs text-lily-dark/70 mt-0.5">Generate customized photo story</p>
+                        </div>
+                        <button onclick="openPhotoCardModal()" class="w-12 h-12 rounded-2xl bg-lily-sage text-white flex items-center justify-center hover:bg-lily-sagedark shadow-md transition-all">
+                            <i data-lucide="sparkles" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TIMER & STOPWATCH DUAL CONTAINER -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <!-- STOPWATCH CARD -->
+                    <div class="glass-panel p-6 rounded-3xl border border-lily-300/40 flex flex-col justify-between shadow-sm relative">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="timer" class="w-5 h-5 text-lily-sage"></i>
+                                <h3 class="font-serif font-bold text-lg text-lily-dark">Stopwatch</h3>
+                            </div>
+                            <span class="text-xs px-3 py-1 rounded-full bg-lily-200 text-lily-sage font-medium">Free Flow</span>
+                        </div>
+
+                        <!-- Timer Mode Inputs -->
+                        <div class="grid grid-cols-2 gap-3 mb-6">
+                            <div>
+                                <label class="text-xs font-semibold text-gray-500 mb-1 block">Subject</label>
+                                <select id="stopwatchSubjectSelect" class="w-full bg-white/80 border border-lily-300 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-lily-sage">
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-gray-500 mb-1 block">Topic (Optional)</label>
+                                <input type="text" id="stopwatchTopicInput" placeholder="e.g. Chapter 4 Integration" class="w-full bg-white/80 border border-lily-300 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-lily-sage">
+                            </div>
+                        </div>
+
+                        <!-- Stopwatch Counter Display -->
+                        <div class="text-center py-6 my-2 bg-lily-50/60 rounded-2xl border border-lily-200">
+                            <div id="stopwatchDisplay" class="font-mono text-5xl font-extrabold text-lily-dark tracking-tight">00:00:00</div>
+                        </div>
+
+                        <!-- Controls -->
+                        <div class="flex items-center justify-center gap-3 mt-4">
+                            <button id="stopwatchStartBtn" onclick="toggleStopwatch()" class="flex-1 py-3 px-6 rounded-2xl bg-lily-sage text-white font-bold hover:bg-lily-sagedark shadow-md transition-all flex items-center justify-center gap-2">
+                                <i data-lucide="play" class="w-5 h-5"></i> Start Session
+                            </button>
+                            <button id="stopwatchResetBtn" onclick="resetStopwatch()" class="p-3 rounded-2xl bg-lily-200 text-lily-dark hover:bg-lily-300 transition-all">
+                                <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- POMODORO / COUNTDOWN TIMER CARD -->
+                    <div class="glass-panel p-6 rounded-3xl border border-lily-300/40 flex flex-col justify-between shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="hourglass" class="w-5 h-5 text-lily-500"></i>
+                                <h3 class="font-serif font-bold text-lg text-lily-dark">Focus Timer</h3>
+                            </div>
+                            <span class="text-xs px-3 py-1 rounded-full bg-lily-200 text-lily-500 font-medium">Target Session</span>
+                        </div>
+
+                        <!-- Inputs & Presets -->
+                        <div class="space-y-3 mb-4">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Subject</label>
+                                    <select id="timerSubjectSelect" class="w-full bg-white/80 border border-lily-300 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-lily-sage">
+                                        <!-- Populated dynamically -->
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-500 mb-1 block">Topic (Optional)</label>
+                                    <input type="text" id="timerTopicInput" placeholder="e.g. Vocabulary Practice" class="w-full bg-white/80 border border-lily-300 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-lily-sage">
+                                </div>
+                            </div>
+
+                            <!-- Duration Quick Buttons -->
+                            <div class="flex items-center gap-2 overflow-x-auto pb-1">
+                                <button onclick="setTimerPreset(25)" class="timer-preset-btn text-xs font-semibold px-3 py-1.5 rounded-xl border border-lily-300 bg-white hover:bg-lily-200 text-lily-dark transition-all">25m</button>
+                                <button onclick="setTimerPreset(30)" class="timer-preset-btn text-xs font-semibold px-3 py-1.5 rounded-xl border border-lily-300 bg-white hover:bg-lily-200 text-lily-dark transition-all">30m</button>
+                                <button onclick="setTimerPreset(45)" class="timer-preset-btn text-xs font-semibold px-3 py-1.5 rounded-xl border border-lily-300 bg-white hover:bg-lily-200 text-lily-dark transition-all">45m</button>
+                                <button onclick="setTimerPreset(60)" class="timer-preset-btn text-xs font-semibold px-3 py-1.5 rounded-xl border border-lily-300 bg-white hover:bg-lily-200 text-lily-dark transition-all">60m</button>
+                                <button onclick="setTimerPreset(90)" class="timer-preset-btn text-xs font-semibold px-3 py-1.5 rounded-xl border border-lily-300 bg-white hover:bg-lily-200 text-lily-dark transition-all">90m</button>
+                            </div>
+                        </div>
+
+                        <!-- Timer Display -->
+                        <div class="text-center py-6 my-2 bg-lily-50/60 rounded-2xl border border-lily-200">
+                            <div id="timerDisplay" class="font-mono text-5xl font-extrabold text-lily-dark tracking-tight">25:00</div>
+                        </div>
+
+                        <!-- Controls -->
+                        <div class="flex items-center justify-center gap-3 mt-4">
+                            <button id="timerStartBtn" onclick="toggleTimer()" class="flex-1 py-3 px-6 rounded-2xl bg-lily-500 text-white font-bold hover:bg-lily-600 shadow-md transition-all flex items-center justify-center gap-2">
+                                <i data-lucide="play" class="w-5 h-5"></i> Start Timer
+                            </button>
+                            <button id="timerResetBtn" onclick="resetTimer()" class="p-3 rounded-2xl bg-lily-200 text-lily-dark hover:bg-lily-300 transition-all">
+                                <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TODAY'S SESSION LOGS QUICK SUMMARY -->
+                <div class="glass-panel p-6 rounded-3xl border border-lily-300/40">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-serif font-bold text-lg text-lily-dark">Today's Study Sessions</h3>
+                        <span class="text-xs text-lily-sage font-medium" id="todaySessionsBadge">0 completed</span>
+                    </div>
+                    <div id="dashboardRecentSessions" class="space-y-3">
+                        <!-- Rendered dynamically -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: ANALYTICS VIEW -->
+            <section id="tab-analytics" class="tab-content hidden flex-col gap-6">
+                <div class="glass-panel p-6 rounded-3xl border border-lily-300/40">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h3 class="font-serif font-bold text-xl text-lily-dark">Subject Breakdown</h3>
+                            <p class="text-xs text-gray-500">Time distribution for today's learning</p>
+                        </div>
+                        <button onclick="openPhotoCardModal()" class="flex items-center gap-2 bg-lily-sage text-white px-4 py-2 rounded-2xl text-xs font-semibold shadow-sm hover:bg-lily-sagedark">
+                            <i data-lucide="camera" class="w-4 h-4"></i> Generate Photo Card
+                        </button>
+                    </div>
+
+                    <!-- Subject Distribution Bars -->
+                    <div id="subjectAnalyticsList" class="space-y-4">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Time of Day & Session Mode Breakdown -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass-panel p-6 rounded-3xl border border-lily-300/40">
+                        <h4 class="font-serif font-bold text-lg text-lily-dark mb-4">Time of Day Peaks</h4>
+                        <div id="timeOfDayBreakdown" class="space-y-3">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-3xl border border-lily-300/40">
+                        <h4 class="font-serif font-bold text-lg text-lily-dark mb-4">Mode Distribution</h4>
+                        <div id="modeDistributionBreakdown" class="space-y-3">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: HISTORY VIEW -->
+            <section id="tab-history" class="tab-content hidden flex-col gap-6">
+                <div class="glass-panel p-6 rounded-3xl border border-lily-300/40">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h3 class="font-serif font-bold text-xl text-lily-dark">Study History Logs</h3>
+                            <p class="text-xs text-gray-500">Review past days and generate archival photo cards</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="historyDateFilter" onchange="filterHistoryByDate()" class="bg-white border border-lily-300 rounded-xl px-3 py-1.5 text-xs focus:outline-none">
+                            <button onclick="resetHistoryFilter()" class="bg-lily-200 text-lily-dark px-3 py-1.5 rounded-xl text-xs font-medium">Show All</button>
+                        </div>
+                    </div>
+
+                    <div id="historyLogsContainer" class="space-y-4">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: SETTINGS VIEW -->
+            <section id="tab-settings" class="tab-content hidden flex-col gap-6">
+                <div class="glass-panel p-6 rounded-3xl border border-lily-300/40 space-y-6">
+                    <h3 class="font-serif font-bold text-xl text-lily-dark">Personal Profile & Target</h3>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600 block mb-1">Your Name</label>
+                            <input type="text" id="settingsName" class="w-full bg-white border border-lily-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-lily-sage focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600 block mb-1">Daily Study Target (Hours)</label>
+                            <input type="number" id="settingsGoal" step="0.5" min="0.5" max="24" class="w-full bg-white border border-lily-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-lily-sage focus:outline-none">
+                        </div>
+                    </div>
+
+                    <button onclick="saveProfileSettings()" class="bg-lily-sage text-white px-6 py-2.5 rounded-2xl text-sm font-bold shadow-md hover:bg-lily-sagedark transition-all">
+                        Save Profile
+                    </button>
+                </div>
+
+                <!-- Subject Management -->
+                <div class="glass-panel p-6 rounded-3xl border border-lily-300/40 space-y-4">
+                    <h3 class="font-serif font-bold text-xl text-lily-dark">Subjects Manager</h3>
+                    
+                    <div class="flex gap-2">
+                        <input type="text" id="newSubjectInput" placeholder="Add new subject (e.g. Physics)" class="flex-1 bg-white border border-lily-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-lily-sage focus:outline-none">
+                        <button onclick="addCustomSubject()" class="bg-lily-500 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md hover:bg-lily-600">
+                            Add Subject
+                        </button>
+                    </div>
+
+                    <div id="subjectsChipContainer" class="flex flex-wrap gap-2 pt-2">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Data Export & Import -->
+                <div class="glass-panel p-6 rounded-3xl border border-lily-300/40 space-y-4">
+                    <h3 class="font-serif font-bold text-xl text-lily-dark">Data Backup & Export</h3>
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="exportDataJSON()" class="bg-lily-200 text-lily-dark px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-lily-300 transition-all flex items-center gap-2">
+                            <i data-lucide="download" class="w-4 h-4"></i> Export JSON Backup
+                        </button>
+                        <label class="bg-lily-200 text-lily-dark px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-lily-300 transition-all flex items-center gap-2 cursor-pointer">
+                            <i data-lucide="upload" class="w-4 h-4"></i> Import JSON Backup
+                            <input type="file" id="importFileInput" accept=".json" onchange="importDataJSON(event)" class="hidden">
+                        </label>
+                        <button onclick="clearAllData()" class="bg-red-100 text-red-600 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-red-200 transition-all flex items-center gap-2">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i> Reset Data
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MOBILE NAVIGATION BOTTOM BAR -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 glass-panel border-t border-lily-300/50 px-4 py-2 z-40 flex items-center justify-around shadow-lg">
+        <button onclick="switchTab('dashboard')" class="mobile-nav-btn text-lily-sage flex flex-col items-center gap-1">
+            <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+            <span class="text-[10px] font-semibold">Home</span>
+        </button>
+        <button onclick="switchTab('analytics')" class="mobile-nav-btn text-lily-dark/70 flex flex-col items-center gap-1">
+            <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+            <span class="text-[10px] font-semibold">Analytics</span>
+        </button>
+        <button onclick="openPhotoCardModal()" class="w-12 h-12 -mt-5 rounded-full bg-gradient-to-tr from-lily-500 to-lily-sage text-white flex items-center justify-center shadow-lg border-2 border-white">
+            <i data-lucide="camera" class="w-6 h-6"></i>
+        </button>
+        <button onclick="switchTab('history')" class="mobile-nav-btn text-lily-dark/70 flex flex-col items-center gap-1">
+            <i data-lucide="calendar" class="w-5 h-5"></i>
+            <span class="text-[10px] font-semibold">History</span>
+        </button>
+        <button onclick="switchTab('settings')" class="mobile-nav-btn text-lily-dark/70 flex flex-col items-center gap-1">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+            <span class="text-[10px] font-semibold">Settings</span>
+        </button>
+    </nav>
+
+    <!-- PHOTO CARD CREATOR MODAL -->
+    <div id="photoCardModal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-50 hidden flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+        <div class="bg-lily-100 rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-y-auto p-4 sm:p-6 shadow-2xl border border-lily-300/60 flex flex-col lg:flex-row gap-6 relative">
+            
+            <!-- Close Button -->
+            <button onclick="closePhotoCardModal()" class="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-white/80 hover:bg-white text-lily-dark flex items-center justify-center shadow-md">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <!-- LEFT CONTROL PANEL -->
+            <div class="w-full lg:w-1/2 flex flex-col gap-4">
+                <div>
+                    <h3 class="font-serif font-bold text-xl text-lily-dark flex items-center gap-2">
+                        <span>☀️ Today's Study Card ☀️</span>
+                    </h3>
+                    <p class="text-xs text-gray-500">Customize background photo, frame theme & text overlay</p>
+                </div>
+
+                <!-- Background Image Presets / Custom Upload -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-lily-dark uppercase tracking-wider">Choose Background Photo</label>
+                    <div class="grid grid-cols-5 gap-2">
+                        <button onclick="setCardPresetBg('desk')" class="h-14 rounded-xl border-2 border-lily-sage bg-cover bg-center overflow-hidden hover:opacity-90 transition-all shadow-sm" style="background-image: url('https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&w=300&q=80')"></button>
+                        <button onclick="setCardPresetBg('garden')" class="h-14 rounded-xl border border-lily-300 bg-cover bg-center overflow-hidden hover:opacity-90 transition-all shadow-sm" style="background-image: url('https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=300&q=80')"></button>
+                        <button onclick="setCardPresetBg('coffee')" class="h-14 rounded-xl border border-lily-300 bg-cover bg-center overflow-hidden hover:opacity-90 transition-all shadow-sm" style="background-image: url('https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=300&q=80')"></button>
+                        <button onclick="setCardPresetBg('library')" class="h-14 rounded-xl border border-lily-300 bg-cover bg-center overflow-hidden hover:opacity-90 transition-all shadow-sm" style="background-image: url('https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=300&q=80')"></button>
+                        <label class="h-14 rounded-xl border-2 border-dashed border-lily-400 bg-lily-50 flex flex-col items-center justify-center text-lily-sage cursor-pointer hover:bg-lily-200 transition-all">
+                            <i data-lucide="upload" class="w-4 h-4"></i>
+                            <span class="text-[9px] font-bold">Custom</span>
+                            <input type="file" accept="image/*" onchange="handleCustomCardBgUpload(event)" class="hidden">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Style Overlay & Color Options -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-lily-dark mb-1 block">Overlay Shade</label>
+                        <select id="cardOverlayShade" onchange="updateCardStyle()" class="w-full bg-white border border-lily-300 rounded-xl p-2 text-xs">
+                            <option value="light">Soft Glass (Light)</option>
+                            <option value="dark">Moody Dark Tint</option>
+                            <option value="gold">Warm Gold Glow</option>
+                            <option value="clear">Minimal Clear</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-lily-dark mb-1 block">Text Color</label>
+                        <select id="cardTextColor" onchange="updateCardStyle()" class="w-full bg-white border border-lily-300 rounded-xl p-2 text-xs">
+                            <option value="dark">Deep Botanical Green</option>
+                            <option value="cream">Warm Cream White</option>
+                            <option value="gold">Antique Gold</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Frame Style -->
+                <div>
+                    <label class="text-xs font-bold text-lily-dark mb-1 block">Frame Motif</label>
+                    <div class="flex gap-2">
+                        <button onclick="setCardBorder('gold-floral')" class="flex-1 py-2 text-xs font-semibold rounded-xl bg-lily-200 text-lily-dark border border-lily-300">Lily Gold Frame</button>
+                        <button onclick="setCardBorder('clean-sage')" class="flex-1 py-2 text-xs font-semibold rounded-xl bg-white text-lily-dark border border-lily-300">Sage Minimal</button>
+                    </div>
+                </div>
+
+                <!-- Date selector for historical cards -->
+                <div>
+                    <label class="text-xs font-bold text-lily-dark mb-1 block">Select Date for Card Stats</label>
+                    <input type="date" id="cardTargetDate" onchange="renderPhotoCardData()" class="w-full bg-white border border-lily-300 rounded-xl p-2 text-xs">
+                </div>
+
+                <!-- EXPORT BUTTONS -->
+                <div class="flex items-center gap-3 mt-2">
+                    <button onclick="downloadPhotoCardPNG()" class="flex-1 py-3 px-4 rounded-2xl bg-lily-sage text-white font-bold text-sm shadow-md hover:bg-lily-sagedark transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="download" class="w-4 h-4"></i> Download Card (PNG)
+                    </button>
+                    <button onclick="sharePhotoCard()" class="py-3 px-4 rounded-2xl bg-lily-200 text-lily-dark font-bold text-sm shadow-md hover:bg-lily-300 transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="share-2" class="w-4 h-4"></i> Share
+                    </button>
+                </div>
+            </div>
+
+            <!-- RIGHT LIVE CANVAS / PREVIEW DISPLAY -->
+            <div class="w-full lg:w-1/2 flex items-center justify-center bg-lily-200/40 p-4 rounded-2xl border border-lily-300/40">
+                
+                <!-- CARD CONTAINER TO BE CAPTURED -->
+                <div id="photoCardCapture" class="w-full max-w-[340px] aspect-[4/5] rounded-3xl relative overflow-hidden flex flex-col justify-between p-6 transition-all duration-300 border-4 border-amber-200/60 shadow-2xl" style="background-image: url('https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&w=800&q=80'); background-size: cover; background-position: center;">
+                    
+                    <!-- Background Dark/Light Glass Overlay -->
+                    <div id="cardGlassOverlay" class="absolute inset-0 bg-amber-50/85 backdrop-blur-[2px] transition-all"></div>
+
+                    <!-- Decorative Botanical Corners -->
+                    <div class="absolute top-2 left-2 text-lily-500 opacity-60 pointer-events-none">✨</div>
+                    <div class="absolute top-2 right-2 text-lily-500 opacity-60 pointer-events-none">🌸</div>
+                    <div class="absolute bottom-2 left-2 text-lily-500 opacity-60 pointer-events-none">🌿</div>
+                    <div class="absolute bottom-2 right-2 text-lily-500 opacity-60 pointer-events-none">✨</div>
+
+                    <!-- CARD HEADER -->
+                    <div class="relative z-10 text-center border-b border-current/20 pb-3" id="cardTextContainer">
+                        <p class="text-[10px] font-serif tracking-widest uppercase font-bold opacity-80" id="cardUserTitle">SHahu's Study Day</p>
+                        <h2 class="font-serif font-bold text-lg mt-0.5" id="cardDateText">Oct 7, 2026</h2>
+                    </div>
+
+                    <!-- CARD CENTER STATS -->
+                    <div class="relative z-10 py-2 space-y-3">
+                        <div class="text-center">
+                            <p class="text-[11px] font-medium opacity-80">Total Study</p>
+                            <h3 class="font-serif font-extrabold text-3xl my-0.5" id="cardTotalHours">4h 25m</h3>
+                            <span class="text-xs px-2.5 py-0.5 rounded-full bg-lily-sage/20 font-bold inline-block" id="cardGoalPercent">Goal: 6h (73%)</span>
+                        </div>
+
+                        <!-- Subjects Breakdown Table -->
+                        <div class="bg-black/5 rounded-2xl p-3 border border-current/10 space-y-1 text-xs" id="cardSubjectsList">
+                            <div class="flex justify-between font-semibold"><span>Physics</span><span>2h</span></div>
+                            <div class="flex justify-between font-semibold"><span>Chem</span><span>1h 20m</span></div>
+                            <div class="flex justify-between font-semibold"><span>Math</span><span>1h 42m</span></div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-[11px] font-semibold text-center">
+                            <div class="bg-black/5 rounded-xl p-1.5 border border-current/10">
+                                <span class="opacity-70 block text-[9px]">Sessions</span>
+                                <span id="cardSessionsVal">7</span>
+                            </div>
+                            <div class="bg-black/5 rounded-xl p-1.5 border border-current/10">
+                                <span class="opacity-70 block text-[9px]">Best Time</span>
+                                <span id="cardPeakVal">Night</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CARD FOOTER WATERMARK -->
+                    <div class="relative z-10 text-center border-t border-current/20 pt-2 flex items-center justify-between text-[10px] opacity-75">
+                        <span class="font-serif font-bold">🌿 Lily Garden</span>
+                        <span>study.tracker</span>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- AUDIO ELEMENT FOR TIMER CHIME -->
+    <audio id="chimeSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+    <script>
+        // GLOBAL APP STATE & PERSISTENCE
+        const STORAGE_KEY = 'lily_garden_study_data_v1';
+
+        let appState = {
+            profile: {
+                name: "Shahu",
+                dailyGoalHours: 6.0
+            },
+            subjects: ["Physics", "Chem", "Math", "English", "Biology"],
+            sessions: [], // Array of { id, subject, topic, durationMinutes, timestamp, mode: 'stopwatch'|'timer' }
+            activeStopwatch: {
+                isRunning: false,
+                startTime: null,
+                elapsedMs: 0
+            },
+            activeTimer: {
+                isRunning: false,
+                startTime: null,
+                totalDurationMs: 25 * 60 * 1000,
+                remainingMs: 25 * 60 * 1000
+            }
+        };
+
+        // Timers Intervals
+        let stopwatchInterval = null;
+        let timerInterval = null;
+        let cardBgCustomUrl = null;
+
+        // INITIALIZATION
+        window.onload = function() {
+            loadStateFromStorage();
+            initPetals();
+            startLiveClock();
+            renderSubjectDropdowns();
+            renderDashboard();
+            renderAnalytics();
+            renderHistory();
+            renderSettingsForm();
+            lucide.createIcons();
+            
+            // Set default card date
+            document.getElementById('cardTargetDate').value = getTodayDateString();
+        };
+
+        // LOCAL STORAGE LOAD & SAVE
+        function loadStateFromStorage() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    appState = { ...appState, ...parsed };
+                } catch(e) {
+                    console.error("Failed to parse local storage", e);
+                }
+            } else {
+                // Preload sample sessions for initial aesthetic preview if empty
+                const today = getTodayDateString();
+                appState.sessions = [
+                    { id: '1', subject: 'Physics', topic: 'Thermodynamics', durationMinutes: 120, timestamp: Date.now() - 1000*3600*3, mode: 'timer' },
+                    { id: '2', subject: 'Chem', topic: 'Organic Bonds', durationMinutes: 80, timestamp: Date.now() - 1000*3600*2, mode: 'stopwatch' },
+                    { id: '3', subject: 'Math', topic: 'Calculus Integrals', durationMinutes: 102, timestamp: Date.now() - 1000*3600*1, mode: 'timer' },
+                    { id: '4', subject: 'English', topic: 'Essay Outline', durationMinutes: 40, timestamp: Date.now() - 1000*1800, mode: 'stopwatch' }
+                ];
+                saveStateToStorage();
+            }
+        }
+
+        function saveStateToStorage() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        }
+
+        // UTILITY FUNCTIONS
+        function getTodayDateString() {
+            const today = new Date();
+            return today.toISOString().split('T')[0];
+        }
+
+        function formatMinutes(mins) {
+            const h = Math.floor(mins / 60);
+            const m = Math.round(mins % 60);
+            if (h === 0) return `${m}m`;
+            if (m === 0) return `${h}h`;
+            return `${h}h ${m}m`;
+        }
+
+        function getTimeOfDayLabel(dateObj) {
+            const hour = dateObj.getHours();
+            if (hour >= 5 && hour < 12) return 'Morning';
+            if (hour >= 12 && hour < 17) return 'Afternoon';
+            if (hour >= 17 && hour < 21) return 'Evening';
+            return 'Night';
+        }
+
+        // ANIMATED BOTANICAL PETALS
+        function initPetals() {
+            const container = document.getElementById('petalContainer');
+            const petalCount = 12;
+            for (let i = 0; i < petalCount; i++) {
+                const petal = document.createElement('div');
+                petal.className = 'petal';
+                const size = Math.random() * 12 + 8;
+                petal.style.width = `${size}px`;
+                petal.style.height = `${size * 1.5}px`;
+                petal.style.left = `${Math.random() * 100}vw`;
+                petal.style.animationDuration = `${Math.random() * 8 + 10}s`;
+                petal.style.animationDelay = `${Math.random() * 5}s`;
+                container.appendChild(petal);
+            }
+        }
+
+        // CLOCK AND GREETING
+        function startLiveClock() {
+            function update() {
+                const now = new Date();
+                document.getElementById('liveClock').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                
+                const hour = now.getHours();
+                let greeting = "Good Morning 🌿";
+                if (hour >= 12 && hour < 17) greeting = "Good Afternoon ☀️";
+                else if (hour >= 17) greeting = "Good Evening 🌙";
+                
+                document.getElementById('greetingHeader').textContent = `${greeting}, ${appState.profile.name}`;
+                document.getElementById('currentDateDisplay').textContent = now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+            }
+            update();
+            setInterval(update, 1000);
+        }
+
+        // NAVIGATION TABS
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-lily-sage', 'text-white');
+                btn.classList.add('text-lily-dark');
+            });
+            const activeNav = document.getElementById(`nav-${tabName}`);
+            if (activeNav) {
+                activeNav.classList.add('bg-lily-sage', 'text-white');
+                activeNav.classList.remove('text-lily-dark');
+            }
+
+            if (tabName === 'dashboard') renderDashboard();
+            if (tabName === 'analytics') renderAnalytics();
+            if (tabName === 'history') renderHistory();
+            if (tabName === 'settings') renderSettingsForm();
+        }
+
+        // SUBJECT SELECT DROPDOWNS
+        function renderSubjectDropdowns() {
+            const swSelect = document.getElementById('stopwatchSubjectSelect');
+            const tmSelect = document.getElementById('timerSubjectSelect');
+            
+            swSelect.innerHTML = '';
+            tmSelect.innerHTML = '';
+
+            appState.subjects.forEach(sub => {
+                swSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
+                tmSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
+            });
+        }
+
+        // STOPWATCH SYSTEM
+        function toggleStopwatch() {
+            const btn = document.getElementById('stopwatchStartBtn');
+            
+            if (!appState.activeStopwatch.isRunning) {
+                // START STOPWATCH
+                appState.activeStopwatch.isRunning = true;
+                appState.activeStopwatch.startTime = Date.now() - appState.activeStopwatch.elapsedMs;
+                btn.innerHTML = `<i data-lucide="pause" class="w-5 h-5"></i> Finish & Save`;
+                btn.classList.replace('bg-lily-sage', 'bg-lily-terracotta');
+
+                stopwatchInterval = setInterval(() => {
+                    appState.activeStopwatch.elapsedMs = Date.now() - appState.activeStopwatch.startTime;
+                    updateStopwatchDisplay();
+                }, 100);
+            } else {
+                // PAUSE & SAVE SESSION
+                clearInterval(stopwatchInterval);
+                appState.activeStopwatch.isRunning = false;
+                
+                const durationMins = Math.round(appState.activeStopwatch.elapsedMs / 60000);
+                if (durationMins >= 1) {
+                    const subject = document.getElementById('stopwatchSubjectSelect').value;
+                    const topic = document.getElementById('stopwatchTopicInput').value.trim();
+                    
+                    appState.sessions.push({
+                        id: Date.now().toString(),
+                        subject: subject,
+                        topic: topic || 'General Study',
+                        durationMinutes: durationMins,
+                        timestamp: Date.now(),
+                        mode: 'stopwatch'
+                    });
+                    
+                    saveStateToStorage();
+                    playChimeSound();
+                    renderDashboard();
+                }
+
+                resetStopwatch();
+            }
+            lucide.createIcons();
+        }
+
+        function updateStopwatchDisplay() {
+            const totalSecs = Math.floor(appState.activeStopwatch.elapsedMs / 1000);
+            const hours = Math.floor(totalSecs / 3600);
+            const minutes = Math.floor((totalSecs % 3600) / 60);
+            const seconds = totalSecs % 60;
+
+            document.getElementById('stopwatchDisplay').textContent = 
+                `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+        }
+
+        function resetStopwatch() {
+            clearInterval(stopwatchInterval);
+            appState.activeStopwatch = { isRunning: false, startTime: null, elapsedMs: 0 };
+            document.getElementById('stopwatchDisplay').textContent = '00:00:00';
+            const btn = document.getElementById('stopwatchStartBtn');
+            btn.innerHTML = `<i data-lucide="play" class="w-5 h-5"></i> Start Session`;
+            btn.classList.replace('bg-lily-terracotta', 'bg-lily-sage');
+            lucide.createIcons();
+        }
+
+        // POMODORO TIMER SYSTEM
+        function setTimerPreset(mins) {
+            if (appState.activeTimer.isRunning) return;
+            appState.activeTimer.totalDurationMs = mins * 60 * 1000;
+            appState.activeTimer.remainingMs = appState.activeTimer.totalDurationMs;
+            updateTimerDisplay();
+        }
+
+        function toggleTimer() {
+            const btn = document.getElementById('timerStartBtn');
+            
+            if (!appState.activeTimer.isRunning) {
+                appState.activeTimer.isRunning = true;
+                appState.activeTimer.startTime = Date.now();
+                btn.innerHTML = `<i data-lucide="pause" class="w-5 h-5"></i> Pause Timer`;
+                btn.classList.replace('bg-lily-500', 'bg-lily-terracotta');
+
+                timerInterval = setInterval(() => {
+                    const elapsed = Date.now() - appState.activeTimer.startTime;
+                    appState.activeTimer.remainingMs = Math.max(0, appState.activeTimer.totalDurationMs - elapsed);
+                    updateTimerDisplay();
+
+                    if (appState.activeTimer.remainingMs <= 0) {
+                        clearInterval(timerInterval);
+                        appState.activeTimer.isRunning = false;
+                        
+                        // Save timer session
+                        const durationMins = Math.round(appState.activeTimer.totalDurationMs / 60000);
+                        const subject = document.getElementById('timerSubjectSelect').value;
+                        const topic = document.getElementById('timerTopicInput').value.trim();
+                        
+                        appState.sessions.push({
+                            id: Date.now().toString(),
+                            subject: subject,
+                            topic: topic || 'Focus Pomodoro',
+                            durationMinutes: durationMins,
+                            timestamp: Date.now(),
+                            mode: 'timer'
+                        });
+
+                        saveStateToStorage();
+                        playChimeSound();
+                        renderDashboard();
+                        openPhotoCardModal(); // Trigger card generator upon goal/session complete!
+                        resetTimer();
+                    }
+                }, 200);
+            } else {
+                clearInterval(timerInterval);
+                appState.activeTimer.isRunning = false;
+                appState.activeTimer.totalDurationMs = appState.activeTimer.remainingMs;
+                btn.innerHTML = `<i data-lucide="play" class="w-5 h-5"></i> Resume Timer`;
+                btn.classList.replace('bg-lily-terracotta', 'bg-lily-500');
+            }
+            lucide.createIcons();
+        }
+
+        function updateTimerDisplay() {
+            const totalSecs = Math.ceil(appState.activeTimer.remainingMs / 1000);
+            const minutes = Math.floor(totalSecs / 60);
+            const seconds = totalSecs % 60;
+            document.getElementById('timerDisplay').textContent = 
+                `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            appState.activeTimer.isRunning = false;
+            appState.activeTimer.totalDurationMs = 25 * 60 * 1000;
+            appState.activeTimer.remainingMs = 25 * 60 * 1000;
+            updateTimerDisplay();
+            const btn = document.getElementById('timerStartBtn');
+            btn.innerHTML = `<i data-lucide="play" class="w-5 h-5"></i> Start Timer`;
+            btn.classList.replace('bg-lily-terracotta', 'bg-lily-500');
+            lucide.createIcons();
+        }
+
+        function playChimeSound() {
+            try {
+                const audio = document.getElementById('chimeSound');
+                audio.currentTime = 0;
+                audio.play();
+            } catch(e) { console.log('Audio playback prevented'); }
+        }
+
+        // RENDER DASHBOARD
+        function renderDashboard() {
+            document.getElementById('sidebarName').textContent = appState.profile.name;
+            document.getElementById('sidebarAvatar').textContent = appState.profile.name.charAt(0).toUpperCase();
+            document.getElementById('sidebarGoalText').textContent = `Target: ${appState.profile.dailyGoalHours}h`;
+
+            // Calculate Today's sessions
+            const todayStr = getTodayDateString();
+            const todaySessions = appState.sessions.filter(s => new Date(s.timestamp).toISOString().split('T')[0] === todayStr);
+            
+            const totalTodayMins = todaySessions.reduce((acc, s) => acc + s.durationMinutes, 0);
+            const goalMins = appState.profile.dailyGoalHours * 60;
+            const percent = Math.min(100, Math.round((totalTodayMins / goalMins) * 100));
+
+            document.getElementById('dashTodayTotal').textContent = formatMinutes(totalTodayMins);
+            document.getElementById('dashGoalSubtitle').textContent = `Goal: ${appState.profile.dailyGoalHours}h 0m`;
+            document.getElementById('dashSessionsCount').textContent = todaySessions.length;
+            document.getElementById('todaySessionsBadge').textContent = `${todaySessions.length} completed`;
+
+            // Goal Progress Ring
+            const ring = document.getElementById('goalProgressRing');
+            const circumference = 2 * Math.PI * 26; // r=26 -> 163.36
+            const offset = circumference - (percent / 100) * circumference;
+            ring.style.strokeDashoffset = offset;
+            document.getElementById('goalPercentText').textContent = `${percent}%`;
+
+            // Calculate Peak Period
+            const periodCounts = { Morning: 0, Afternoon: 0, Evening: 0, Night: 0 };
+            todaySessions.forEach(s => {
+                const p = getTimeOfDayLabel(new Date(s.timestamp));
+                periodCounts[p] += s.durationMinutes;
+            });
+            let peakPeriod = '--';
+            let maxMins = 0;
+            Object.keys(periodCounts).forEach(p => {
+                if (periodCounts[p] > maxMins) {
+                    maxMins = periodCounts[p];
+                    peakPeriod = p;
+                }
+            });
+            document.getElementById('dashPeakPeriod').textContent = `Peak Time: ${peakPeriod}`;
+
+            // Render Recent Sessions List
+            const recentContainer = document.getElementById('dashboardRecentSessions');
+            if (todaySessions.length === 0) {
+                recentContainer.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">No study sessions recorded today yet. Start the stopwatch or timer above!</p>`;
+            } else {
+                recentContainer.innerHTML = todaySessions.slice().reverse().map(s => `
+                    <div class="flex items-center justify-between p-3 rounded-2xl bg-white/70 border border-lily-200 text-xs">
+                        <div class="flex items-center gap-3">
+                            <span class="w-2.5 h-2.5 rounded-full ${s.mode === 'timer' ? 'bg-lily-500' : 'bg-lily-sage'}"></span>
+                            <div>
+                                <h4 class="font-bold text-lily-dark">${s.subject}</h4>
+                                <p class="text-[10px] text-gray-500">${s.topic} • ${new Date(s.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
+                            </div>
+                        </div>
+                        <span class="font-mono font-bold text-lily-dark">${formatMinutes(s.durationMinutes)}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // RENDER ANALYTICS
+        function renderAnalytics() {
+            const todayStr = getTodayDateString();
+            const todaySessions = appState.sessions.filter(s => new Date(s.timestamp).toISOString().split('T')[0] === todayStr);
+            const totalMins = todaySessions.reduce((acc, s) => acc + s.durationMinutes, 0);
+
+            // Subject Breakdown Map
+            const subjectMins = {};
+            appState.subjects.forEach(sub => subjectMins[sub] = 0);
+            todaySessions.forEach(s => {
+                subjectMins[s.subject] = (subjectMins[s.subject] || 0) + s.durationMinutes;
+            });
+
+            const subjectContainer = document.getElementById('subjectAnalyticsList');
+            subjectContainer.innerHTML = Object.keys(subjectMins).map(sub => {
+                const mins = subjectMins[sub];
+                const pct = totalMins > 0 ? Math.round((mins / totalMins) * 100) : 0;
+                return `
+                    <div>
+                        <div class="flex justify-between text-xs font-semibold text-lily-dark mb-1">
+                            <span>${sub}</span>
+                            <span>${formatMinutes(mins)} (${pct}%)</span>
+                        </div>
+                        <div class="w-full h-3 bg-lily-200/60 rounded-full overflow-hidden">
+                            <div class="h-full bg-lily-sage transition-all duration-500" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Time of Day
+            const periodMins = { Morning: 0, Afternoon: 0, Evening: 0, Night: 0 };
+            todaySessions.forEach(s => {
+                const p = getTimeOfDayLabel(new Date(s.timestamp));
+                periodMins[p] += s.durationMinutes;
+            });
+            document.getElementById('timeOfDayBreakdown').innerHTML = Object.keys(periodMins).map(p => `
+                <div class="flex justify-between items-center text-xs p-2.5 rounded-xl bg-white/60 border border-lily-200">
+                    <span class="font-medium text-lily-dark">${p}</span>
+                    <span class="font-bold text-lily-sage">${formatMinutes(periodMins[p])}</span>
+                </div>
+            `).join('');
+
+            // Mode Distribution
+            let timerMins = 0, stopwatchMins = 0;
+            todaySessions.forEach(s => {
+                if (s.mode === 'timer') timerMins += s.durationMinutes;
+                else stopwatchMins += s.durationMinutes;
+            });
+            document.getElementById('modeDistributionBreakdown').innerHTML = `
+                <div class="flex justify-between items-center text-xs p-2.5 rounded-xl bg-white/60 border border-lily-200 mb-2">
+                    <span class="font-medium text-lily-dark">Focus Timer (Pomodoro)</span>
+                    <span class="font-bold text-lily-500">${formatMinutes(timerMins)}</span>
+                </div>
+                <div class="flex justify-between items-center text-xs p-2.5 rounded-xl bg-white/60 border border-lily-200">
+                    <span class="font-medium text-lily-dark">Free Stopwatch</span>
+                    <span class="font-bold text-lily-sage">${formatMinutes(stopwatchMins)}</span>
+                </div>
+            `;
+        }
+
+        // HISTORY & CALENDAR LOGS
+        function renderHistory(filterDate = null) {
+            const container = document.getElementById('historyLogsContainer');
+            let sessionsToRender = [...appState.sessions];
+
+            if (filterDate) {
+                sessionsToRender = sessionsToRender.filter(s => new Date(s.timestamp).toISOString().split('T')[0] === filterDate);
+            }
+
+            if (sessionsToRender.length === 0) {
+                container.innerHTML = `<p class="text-xs text-gray-400 text-center py-6">No study sessions found for this timeframe.</p>`;
+                return;
+            }
+
+            // Group by Date
+            const grouped = {};
+            sessionsToRender.forEach(s => {
+                const d = new Date(s.timestamp).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                const rawDate = new Date(s.timestamp).toISOString().split('T')[0];
+                if (!grouped[d]) grouped[d] = { rawDate, items: [], totalMins: 0 };
+                grouped[d].items.push(s);
+                grouped[d].totalMins += s.durationMinutes;
+            });
+
+            container.innerHTML = Object.keys(grouped).map(dateTitle => {
+                const group = grouped[dateTitle];
+                return `
+                    <div class="glass-card p-4 rounded-2xl border border-lily-300/50 space-y-3">
+                        <div class="flex items-center justify-between border-b border-lily-300/40 pb-2">
+                            <div>
+                                <h4 class="font-serif font-bold text-sm text-lily-dark">${dateTitle}</h4>
+                                <p class="text-[10px] text-lily-sage font-semibold">Total: ${formatMinutes(group.totalMins)}</p>
+                            </div>
+                            <button onclick="openPhotoCardModal('${group.rawDate}')" class="flex items-center gap-1.5 bg-lily-200 hover:bg-lily-300 text-lily-dark px-3 py-1.5 rounded-xl text-xs font-bold transition-all">
+                                <i data-lucide="camera" class="w-3.5 h-3.5"></i> Card
+                            </button>
+                        </div>
+                        <div class="space-y-1.5">
+                            ${group.items.map(item => `
+                                <div class="flex justify-between items-center text-xs py-1">
+                                    <span class="text-lily-dark font-medium">${item.subject} <span class="text-gray-400">(${item.topic})</span></span>
+                                    <span class="font-mono font-bold">${formatMinutes(item.durationMinutes)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function filterHistoryByDate() {
+            const dateVal = document.getElementById('historyDateFilter').value;
+            renderHistory(dateVal);
+        }
+
+        function resetHistoryFilter() {
+            document.getElementById('historyDateFilter').value = '';
+            renderHistory();
+        }
+
+        // SETTINGS & PROFILE MANAGEMENT
+        function renderSettingsForm() {
+            document.getElementById('settingsName').value = appState.profile.name;
+            document.getElementById('settingsGoal').value = appState.profile.dailyGoalHours;
+
+            const chipContainer = document.getElementById('subjectsChipContainer');
+            chipContainer.innerHTML = appState.subjects.map(sub => `
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-lily-200 text-lily-dark text-xs font-bold">
+                    ${sub}
+                    <button onclick="removeSubject('${sub}')" class="text-lily-sage hover:text-red-500 font-bold">&times;</button>
+                </span>
+            `).join('');
+        }
+
+        function saveProfileSettings() {
+            const name = document.getElementById('settingsName').value.trim();
+            const goal = parseFloat(document.getElementById('settingsGoal').value);
+
+            if (name) appState.profile.name = name;
+            if (goal && goal > 0) appState.profile.dailyGoalHours = goal;
+
+            saveStateToStorage();
+            renderDashboard();
+            alert("Profile updated successfully!");
+        }
+
+        function addCustomSubject() {
+            const input = document.getElementById('newSubjectInput');
+            const sub = input.value.trim();
+            if (sub && !appState.subjects.includes(sub)) {
+                appState.subjects.push(sub);
+                saveStateToStorage();
+                renderSubjectDropdowns();
+                renderSettingsForm();
+                input.value = '';
+            }
+        }
+
+        function removeSubject(sub) {
+            appState.subjects = appState.subjects.filter(s => s !== sub);
+            saveStateToStorage();
+            renderSubjectDropdowns();
+            renderSettingsForm();
+        }
+
+        // DATA EXPORT AND IMPORT
+        function exportDataJSON() {
+            const jsonStr = JSON.stringify(appState, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lily_garden_backup_${getTodayDateString()}.json`;
+            a.click();
+        }
+
+        function importDataJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const imported = JSON.parse(evt.target.result);
+                    appState = { ...appState, ...imported };
+                    saveStateToStorage();
+                    renderSubjectDropdowns();
+                    renderDashboard();
+                    alert("Data imported successfully!");
+                } catch(err) {
+                    alert("Invalid JSON data backup file.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function clearAllData() {
+            if (confirm("Are you sure you want to reset all study data?")) {
+                localStorage.removeItem(STORAGE_KEY);
+                location.reload();
+            }
+        }
+
+        // PHOTO STUDY CARD GENERATOR MODAL & CANVAS LOGIC
+        function openPhotoCardModal(dateStr = null) {
+            const targetDate = dateStr || document.getElementById('cardTargetDate').value || getTodayDateString();
+            document.getElementById('cardTargetDate').value = targetDate;
+            document.getElementById('photoCardModal').classList.remove('hidden');
+            renderPhotoCardData();
+        }
+
+        function closePhotoCardModal() {
+            document.getElementById('photoCardModal').classList.add('hidden');
+        }
+
+        function setCardPresetBg(preset) {
+            const capture = document.getElementById('photoCardCapture');
+            const presets = {
+                desk: 'https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&w=800&q=80',
+                garden: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=800&q=80',
+                coffee: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=800&q=80',
+                library: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800&q=80'
+            };
+            if (presets[preset]) {
+                capture.style.backgroundImage = `url('${presets[preset]}')`;
+            }
+        }
+
+        function handleCustomCardBgUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    cardBgCustomUrl = e.target.result;
+                    document.getElementById('photoCardCapture').style.backgroundImage = `url('${cardBgCustomUrl}')`;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function updateCardStyle() {
+            const shade = document.getElementById('cardOverlayShade').value;
+            const textColor = document.getElementById('cardTextColor').value;
+            const overlay = document.getElementById('cardGlassOverlay');
+            const capture = document.getElementById('photoCardCapture');
+
+            // Shade Overlay Styles
+            if (shade === 'light') overlay.className = 'absolute inset-0 bg-amber-50/85 backdrop-blur-[2px] transition-all';
+            else if (shade === 'dark') overlay.className = 'absolute inset-0 bg-stone-900/85 backdrop-blur-[2px] transition-all';
+            else if (shade === 'gold') overlay.className = 'absolute inset-0 bg-amber-200/80 backdrop-blur-[2px] transition-all';
+            else if (shade === 'clear') overlay.className = 'absolute inset-0 bg-black/30 backdrop-blur-[1px] transition-all';
+
+            // Text Color Styles
+            if (textColor === 'dark') capture.className = capture.className.replace(/text-\[\w+\]/g, '') + ' text-lily-dark';
+            else if (textColor === 'cream') capture.className = capture.className.replace(/text-\[\w+\]/g, '') + ' text-amber-50';
+            else if (textColor === 'gold') capture.className = capture.className.replace(/text-\[\w+\]/g, '') + ' text-amber-300';
+        }
+
+        function setCardBorder(borderStyle) {
+            const capture = document.getElementById('photoCardCapture');
+            if (borderStyle === 'gold-floral') {
+                capture.style.border = "4px solid rgba(251, 191, 36, 0.6)";
+            } else {
+                capture.style.border = "4px solid rgba(110, 142, 89, 0.8)";
+            }
+        }
+
+        function renderPhotoCardData() {
+            const targetDateStr = document.getElementById('cardTargetDate').value || getTodayDateString();
+            const dateObj = new Date(targetDateStr + 'T00:00:00');
+            
+            const dateFormatted = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            // Filter sessions for target date
+            const targetSessions = appState.sessions.filter(s => new Date(s.timestamp).toISOString().split('T')[0] === targetDateStr);
+            
+            const totalMins = targetSessions.reduce((acc, s) => acc + s.durationMinutes, 0);
+            const goalMins = appState.profile.dailyGoalHours * 60;
+            const goalPct = Math.round((totalMins / goalMins) * 100);
+
+            // Populate Card Elements
+            document.getElementById('cardUserTitle').textContent = `${appState.profile.name}'s Study Day`;
+            document.getElementById('cardDateText').textContent = dateFormatted;
+            document.getElementById('cardTotalHours').textContent = formatMinutes(totalMins);
+            document.getElementById('cardGoalPercent').textContent = `Goal: ${appState.profile.dailyGoalHours}h (${goalPct}%)`;
+            document.getElementById('cardSessionsVal').textContent = targetSessions.length;
+
+            // Subject Breakdown Top 3
+            const subMap = {};
+            targetSessions.forEach(s => subMap[s.subject] = (subMap[s.subject] || 0) + s.durationMinutes);
+            const sortedSubs = Object.keys(subMap).sort((a,b) => subMap[b] - subMap[a]).slice(0, 3);
+
+            const cardSubjectsList = document.getElementById('cardSubjectsList');
+            if (sortedSubs.length === 0) {
+                cardSubjectsList.innerHTML = `<p class="text-center opacity-70 text-[10px]">No study logs recorded for this day</p>`;
+            } else {
+                cardSubjectsList.innerHTML = sortedSubs.map(s => `
+                    <div class="flex justify-between font-semibold">
+                        <span>${s}</span>
+                        <span>${formatMinutes(subMap[s])}</span>
+                    </div>
+                `).join('');
+            }
+
+            // Peak Period
+            const periodCounts = { Morning: 0, Afternoon: 0, Evening: 0, Night: 0 };
+            targetSessions.forEach(s => {
+                const p = getTimeOfDayLabel(new Date(s.timestamp));
+                periodCounts[p] += s.durationMinutes;
+            });
+            let peak = 'Day';
+            let maxM = 0;
+            Object.keys(periodCounts).forEach(p => {
+                if (periodCounts[p] > maxM) { maxM = periodCounts[p]; peak = p; }
+            });
+            document.getElementById('cardPeakVal').textContent = peak;
+        }
+
+        // DOWNLOAD PHOTO CARD VIA HTML2CANVAS
+        function downloadPhotoCardPNG() {
+            const captureArea = document.getElementById('photoCardCapture');
+            
+            html2canvas(captureArea, {
+                useCORS: true,
+                scale: 3, // High-res render
+                backgroundColor: null
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `StudyCard_${appState.profile.name}_${document.getElementById('cardTargetDate').value}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }).catch(err => {
+                console.error("Card capture failed: ", err);
+                alert("Unable to generate card image due to cross-origin restriction.");
+            });
+        }
+
+        // WEB SHARE API INTEGRATION
+        function sharePhotoCard() {
+            const captureArea = document.getElementById('photoCardCapture');
+            
+            html2canvas(captureArea, { useCORS: true, scale: 2 }).then(canvas => {
+                canvas.toBlob(blob => {
+                    if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'study_card.png', {type: 'image/png'})] })) {
+                        const file = new File([blob], 'study_card.png', { type: 'image/png' });
+                        navigator.share({
+                            title: "My Daily Study Summary",
+                            text: `Check out my study progress today on Lily Garden Study Tracker! 🌿`,
+                            files: [file]
+                        });
+                    } else {
+                        // Fallback copy message
+                        alert("Sharing directly isn't supported on this device browser. Please use 'Download Card' to save and share your image!");
+                    }
+                }, 'image/png');
+            });
+        }
+    </script>
+</body>
+</html>
